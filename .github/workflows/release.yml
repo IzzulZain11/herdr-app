@@ -65,6 +65,8 @@ jobs:
           - { target: linux-aarch64, runner: ubuntu-22.04-arm }
           - { target: macos-aarch64, runner: macos-15 }
           - { target: windows-x86_64, runner: windows-2022 }
+          # Fork trial. Upstream publish rules are unchanged.
+          - { target: windows-aarch64, runner: windows-11-arm }
     runs-on: ${{ matrix.runner }}
     # Only tags can access the release environment's Apple certificate.
     environment: ${{ github.ref_type == 'tag' && 'release' || 'build' }}
