@@ -1,0 +1,73 @@
+# Personal fork trial. GitHub Actions builds the Windows ARM64 app when
+# someone starts this workflow by hand. Nothing is signed, published, or
+# uploaded to herdr.dev. The artifact stays on this fork for 7 days.
+#
+# scripts/package reads the runner CPU, so this job must run on
+# windows-11-arm. The packed name is herdr-app-windows-aarch64.tar.gz.
+name: ARM64 trial
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RUST_TOOLCHAIN: 1.95.0
+
+jobs:
+  build:
+    runs-on: windows-11-arm
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: 0.16.0
+      - name: Restore build cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: release-v1-windows-aarch64-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+          restore-keys: |
+            release-v1-windows-aarch64-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('Cargo.lock') }}-
+            release-v1-windows-aarch64-${{ env.RUST_TOOLCHAIN }}-
+      - name: Windows build dependencies
+        run: echo "LIBCLANG_PATH=C:\\Program Files\\LLVM\\bin" >> "$GITHUB_ENV"
+      - name: Keep unchanged sources fresh
+        run: scripts/ci-sources restore
+      - name: Build and pack
+        run: scripts/package
+      - name: Verify release notices
+        run: |
+          archive="dist/herdr-app-windows-aarch64.tar.gz"
+          tar -xOf "$archive" herdr-app/THIRD-PARTY-NOTICES | cmp - THIRD-PARTY-NOTICES
+          tar -xOf "$archive" herdr-app/LICENSE | cmp - LICENSE
+      - name: Save build cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: release-v1-windows-aarch64-${{ env.RUST_TOOLCHAIN }}-${{ hashFiles('Cargo.lock') }}-${{ github.sha }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: herdr-app-windows-aarch64
+          path: dist/herdr-app-windows-aarch64.tar.gz
+          if-no-files-found: error
+          retention-days: 7
