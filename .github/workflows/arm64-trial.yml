@@ -2,8 +2,10 @@
 # someone starts this workflow by hand. Nothing is signed, published, or
 # uploaded to herdr.dev. The artifact stays on this fork for 7 days.
 #
-# scripts/package reads the runner CPU, so this job must run on
-# windows-11-arm. The packed name is herdr-app-windows-aarch64.tar.gz.
+# The official Zig 0.16.0 aarch64-windows compiler crashes with 0xc0000005
+# (https://codeberg.org/ziglang/zig/issues/31865). This job therefore runs
+# on Windows x64 and passes the ARM triple to scripts/package. The packed
+# name is herdr-app-windows-aarch64.tar.gz.
 name: ARM64 trial
 
 on:
@@ -17,7 +19,7 @@ env:
 
 jobs:
   build:
-    runs-on: windows-11-arm
+    runs-on: windows-2025
     timeout-minutes: 90
     defaults:
       run:
@@ -30,6 +32,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ env.RUST_TOOLCHAIN }}
+          targets: aarch64-pc-windows-msvc
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: 0.16.0
@@ -50,7 +53,7 @@ jobs:
       - name: Keep unchanged sources fresh
         run: scripts/ci-sources restore
       - name: Build and pack
-        run: scripts/package
+        run: scripts/package aarch64-pc-windows-msvc
       - name: Verify release notices
         run: |
           archive="dist/herdr-app-windows-aarch64.tar.gz"
